@@ -35,9 +35,6 @@ if __name__ == '__main__':
             b_out = tf.Variable(tf.constant(1.0, shape=[out_dim]))
 
             def model(data):
-                #shape = data.get_shape().as_list()
-                #print shape
-                #reshape = tf.reshape(data, [shape[0], shape[1] * shape[2]])
                 h1 = tf.nn.relu(tf.matmul(data, W_h1) + b_h1)
                 return tf.matmul(h1, W_out) + b_out
 
@@ -60,29 +57,30 @@ if __name__ == '__main__':
                 y_batch = dataset['y_train'][offset:(offset + batchsize), :]
                 feed_dict = {tf_train: x_batch, tf_label: y_batch}
                 _, l, vl, predictions = session.run([optimizer, loss, validation_loss, yhat_train], feed_dict=feed_dict)
-                train_log[iters-1] = l
-                valid_log[iters-1] = vl
-                train_error[iters-1] = errors(predictions, y_batch)
-                valid_error[iters-1] = errors(yhat_valid.eval(), dataset['y_valid'])
+
+                train_log[step] = l
+                valid_log[step] = vl
+                train_error[step] = errors(predictions, y_batch)
+                valid_error[step] = errors(yhat_valid.eval(), dataset['y_valid'])
                 if (step % 100 == 0):
-                    print ('Minibatch loss at step %d: %f' % (step, l))
+                    print ('Minibatch loss at step %d: %f, validation loss %f' % (step, l, vl))
                     print 'Minibatch accuracy: ', accuracy(predictions, y_batch)
                     print 'Validation accuracy: ', accuracy(yhat_valid.eval(), dataset['y_valid'])
                     print 'Validation errors: ', errors(yhat_test.eval(), dataset['y_test'])
                     print 'Test accuracy: ', accuracy(yhat_test.eval(), dataset['y_test'])
                     print 'Test errors: ', errors(yhat_test.eval(), dataset['y_test'])
 
-            log_dict = {'learning_rate': learning_rate,
-                        'batch_size': batchsize,
-                        'batch_train_log': train_log,
-                        'valid_log': valid_log,
-                        'train_error': train_error,
-                        'valid_error': valid_error}
+        log_dict = {'learning_rate': learning_rate,
+                    'batch_size': batchsize,
+                    'batch_train_log': train_log,
+                    'valid_log': valid_log,
+                    'train_error': train_error,
+                    'valid_error': valid_error}
                         
-            np.savez('log_likehood%d.npz' % (-np.log(learning_rate)), 
-                        learning_rate = learning_rate,
-                        batch_size = batchsize,
-                        batch_train_log = train_log,
-                        valid_log = valid_log,
-                        train_error = train_error,
-                        valid_error = valid_error)
+        np.savez('log_likehood%d.npz' % (-np.log(learning_rate)), 
+                    learning_rate = learning_rate,
+                    batch_size = batchsize,
+                    batch_train_log = train_log,
+                    valid_log = valid_log,
+                    train_error = train_error,
+                    valid_error = valid_error)
