@@ -2,9 +2,11 @@
 nn.py
 train neural networks for assignment 2
 """
+import time
 import os
 import numpy as np
 import tensorflow as tf
+from util import *
 import pdb
 
 
@@ -55,9 +57,6 @@ def mlp(input_dim, output_dim, drop_rate, hiddens=[], nonlinearity='relu'):
     
     return g
 
-def convo():
-    return
-
 def convnet(imgwidth, imgheight, output_dim, configs):
     model = mlp(28*28, 10, 0, hiddens=[128]) 
 
@@ -67,11 +66,9 @@ def convnet(imgwidth, imgheight, output_dim, configs):
 
     #Wc1 = W_var([5, 5, 1, imgwidth])
 
-def task6():
-    seed = os.time()
+def task6(rep):
+    seed = np.int32(rep)
     np.random.seed(seed)
-
-    
 
     dataset = dataset_gen("notMNIST.npz", flatten=True, onehot=True)
     batchsize = 128
@@ -82,16 +79,22 @@ def task6():
     layers = np.random.randint(1, 4)
     hidden_dim = np.random.randint(100, 501)
     out_dim = 10
-    drop_rate = np.random.choice([0., 0.5])
+    keep_rate = np.random.choice(np.asarray([1., 0.5], dtype='float32'))
     out_dir = "./"
 
-    learning_rate = np.exp(-1. * np.random.randint(-4, -1))
+    learning_rate = np.float32(1./np.power(10, np.random.randint(3, 6)))
     iters = 1001
     train_log = np.zeros(iters)
     valid_log = np.zeros(iters)
     train_error = np.zeros(iters)
     valid_error = np.zeros(iters)
-
+    
+    print layers, hidden_dim, keep_rate, learning_rate
+    hyperparams = {'layers': layers,
+                   'hidden_dim': hidden_dim,
+                   'keep_rate': keep_rate,
+                   'learning_rate': learning_rate}
+    
     _g = tf.Graph()
     with _g.as_default():
         tf_train = tf.placeholder(tf.float32, shape=(batchsize, imgheight * imgwidth * channels))
@@ -102,25 +105,32 @@ def task6():
         
         W_h = []
         b_h = []
+        hidden_drop = []
+        hidden_nodrop = []
+
         upper_dim = imgheight*imgwidth*channels
         lower_dim = hidden_dim
-        for layer_i in arange(layers):
+        for layer_i in np.arange(layers):
             W_h.append(tf.Variable(tf.truncated_normal([upper_dim, lower_dim], stddev=0.1)))
             b_h.append(tf.Variable(tf.constant(1.0, shape=[lower_dim])))
             upper_dim = lower_dim
 
         W_out = tf.Variable(tf.truncated_normal([lower_dim, out_dim], stddev=0.1))
         b_out = tf.Variable(tf.constant(1.0, shape=[out_dim]))
-
+        
         def model_drop(data):
-            hidden = []
             input = data
-            for layer_i in arange(layers):
-                hidden[layer_i] = tf.nn.relu(tf.nn.dropout(tf.matmul(input, W_h1), drop_rate) + b_h1)
-            return tf.matmul(h1, W_out) + b_out
+            for layer_i in np.arange(layers):
+                hidden_drop.append(tf.nn.relu(tf.nn.dropout(tf.matmul(input, W_h[layer_i]), keep_rate) + b_h[layer_i]))
+                input = hidden_drop[layer_i]
+            return tf.matmul(hidden_drop[-1], W_out) + b_out
+
         def model_nodrop(data):
-            h1 = tf.nn.relu(0.5 * tf.matmul(data, W_h1) + b_h1) # reduce activity in forward prop
-            return tf.matmul(h1, W_out) + b_out
+            input = data
+            for layer_i in np.arange(layers):
+                hidden_nodrop.append(tf.nn.relu(0.5 * tf.matmul(input, W_h[layer_i]) + b_h[layer_i])) # reduce activity in forward prop
+                input = hidden_nodrop[layer_i]
+            return tf.matmul(hidden_nodrop[-1], W_out) + b_out
 
         logits = model_drop(tf_train)
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits, tf_label))
@@ -132,7 +142,7 @@ def task6():
         validation_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(yhat_valid, tf_valid_label))
         yhat_test = tf.nn.softmax(model_nodrop(tf_test))
 
-    with tf.Session(graph=task2_g) as session:
+    with tf.Session(graph=_g) as session:
 
         # Checkpoints
         check_dir = os.path.abspath(os.path.join(out_dir, "checkpoints"))
@@ -188,7 +198,7 @@ def task6():
                     'train_error': train_error,
                     'valid_error': valid_error}
                         
-        np.savez('t5log_likehood.npz' % (-np.log(learning_rate)), 
+        np.savez('t6log_likehood%d.npz' % (rep), 
                     learning_rate = learning_rate,
                     batch_size = batchsize,
                     batch_train_log = train_log,
@@ -196,10 +206,19 @@ def task6():
                     train_error = train_error,
                     valid_error = valid_error)
 
+        return hyperparams
+
 def task3():
     graph = mlp(28*28, 10, 0.5, [1000, 100])
 
 if __name__ == '__main__':
     #convnet(28, 28, 10, {'filter_width':5, 'stride':1})
     #task2()
-    #task6()
+    #task3()
+    for i in np.arange(5):
+        rvals = task6(i)
+        np.savez('t6hypers%d.npz' % i,
+                learning_rate = rvals['learning_rate'],
+                layers = rvals['layers'],
+                hidden_dim = rvals['hidden_dim'],
+                keep_rate = rvals['keep_rate'])
