@@ -1,5 +1,7 @@
 import numpy as np
 import tensorflow as tf
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 def preprocess():
@@ -107,4 +109,5 @@ def task1():
 
 if __name__ == '__main__':
     task1()
-    plt.show()
+    #plt.show()
+    plt.savefig('logistic.png', bbox_inches='tight')

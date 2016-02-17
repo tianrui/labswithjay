@@ -31,12 +31,29 @@ def best_test_results(fname):
         train_err, valid_err, test_err, eta, batch_size, valid_loss, batch_train_loss = data["train_error"], data["valid_error"], data["test_error"], data["learning_rate"], data["batch_size"], data["valid_log"], data["batch_train_log"]
 
     best_iter = np.argmin(valid_err[np.nonzero(valid_err)])
-    print '%s has best validation loss at %d iterations\n
-           validation loss = %d\n
-           validation errors = %d\n
-           test errors = %d' % (fname, best_iter, valid_loss[best_iter], valid_err[best_iter], test_err[best_iter],
+    print "%s has best validation loss at %d iterations\
+           validation loss = %f\
+           validation errors = %d\
+           test errors = %d\
+           learning rate = %f" % (fname, best_iter, valid_loss[best_iter], valid_err[best_iter], test_err[best_iter], eta)
+    return
+                   
+def report_all():
+    best_test_results('log_likehood11.npz')
+    best_test_results('log_likehood9.npz')
+    best_test_results('log_likehood6.npz')
+    best_test_results('log_likehood4.npz')
+    best_test_results('log_likehood2.npz')
 
-    
+    best_test_results('t3log_likehood100.npz')
+    best_test_results('t3log_likehood500.npz')
+    best_test_results('t3log_likehood1000.npz')
+
+    best_test_results('t4log_likehood6.npz')
+
+    best_test_results('t5log_likehood.npz')
+    best_test_results('t6log_likehood6.npz')
+ 
 
 def plot_all():
     
@@ -62,4 +79,5 @@ def plot_all():
     
 
 if __name__ == '__main__':
-    plot_all()
+    #plot_all()
+    report_all()
