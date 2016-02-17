@@ -7,7 +7,7 @@ def gen_plot(fname, title):
     with np.load(fname) as data:
         train_err, valid_err, eta, batch_size, valid_loss, batch_train_loss = data["train_error"], data["valid_error"], data["learning_rate"], data["batch_size"], data["valid_log"], data["batch_train_log"]
 
-    epoch = range(1001)
+    epoch = range(len(train_err))
     fig = plt.figure(1, figsize=(8, 6))
     plt.subplot(211)
     plt.plot(epoch, batch_train_loss, label='training')
@@ -25,6 +25,18 @@ def gen_plot(fname, title):
     plt.savefig('plot_%s.png' % fname, bbox_inches='tight')
     fig.clf()
     return
+
+def best_test_results(fname):
+    with np.load(fname) as data:
+        train_err, valid_err, test_err, eta, batch_size, valid_loss, batch_train_loss = data["train_error"], data["valid_error"], data["test_error"], data["learning_rate"], data["batch_size"], data["valid_log"], data["batch_train_log"]
+
+    best_iter = np.argmin(valid_err[np.nonzero(valid_err)])
+    print '%s has best validation loss at %d iterations\n
+           validation loss = %d\n
+           validation errors = %d\n
+           test errors = %d' % (fname, best_iter, valid_loss[best_iter], valid_err[best_iter], test_err[best_iter],
+
+    
 
 def plot_all():
     
