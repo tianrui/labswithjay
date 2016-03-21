@@ -13,13 +13,14 @@ if __name__ == '__main__':
     channels = 1
     hidden_dim = 500
     out_dim = 10
-    learning_rate = 1e-4
+    learning_rate = 1e-3
     iters = 1001
     
     train_log = np.zeros(iters)
     valid_log = np.zeros(iters)
     train_error = np.zeros(iters)
     valid_error = np.zeros(iters)
+    test_error = np.zeros(iters)
 
     task2_g = tf.Graph()
     with task2_g.as_default():
@@ -77,11 +78,12 @@ if __name__ == '__main__':
             valid_log[step] = vl
             train_error[step] = errors(predictions, y_batch)
             valid_error[step] = errors(yhat_valid.eval(), dataset['y_valid'])
+            test_error[step] = errors(yhat_test.eval(), dataset['y_test'])
             if (step % 100 == 0):
                 print ('Minibatch loss at step %d: %f, validation loss %f' % (step, l, vl))
                 print 'Minibatch accuracy: ', accuracy(predictions, y_batch)
                 print 'Validation accuracy: ', accuracy(yhat_valid.eval(), dataset['y_valid'])
-                print 'Validation errors: ', errors(yhat_test.eval(), dataset['y_test'])
+                print 'Validation errors: ', errors(yhat_valid.eval(), dataset['y_valid'])
                 print 'Test accuracy: ', accuracy(yhat_test.eval(), dataset['y_test'])
                 print 'Test errors: ', errors(yhat_test.eval(), dataset['y_test'])
 
@@ -98,4 +100,5 @@ if __name__ == '__main__':
                     batch_train_log = train_log,
                     valid_log = valid_log,
                     train_error = train_error,
-                    valid_error = valid_error)
+                    valid_error = valid_error,
+                    test_error = test_error)

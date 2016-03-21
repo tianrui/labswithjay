@@ -76,18 +76,19 @@ def task6(rep):
     imgheight = 28
     imgwidth = 28
     channels = 1
-    layers = np.random.randint(1, 4)
-    hidden_dim = np.random.randint(100, 501)
+    layers = 2 #np.random.randint(1, 4)
+    hidden_dim = 335 #np.random.randint(100, 501)
     out_dim = 10
-    keep_rate = np.random.choice(np.asarray([1., 0.5], dtype='float32'))
+    keep_rate = 1. #np.random.choice(np.asarray([1., 0.5], dtype='float32'))
     out_dir = "./"
 
-    learning_rate = np.float32(1./np.power(10, np.random.randint(3, 6)))
+    learning_rate = 1e-3 #np.float32(1./np.power(10, np.random.randint(3, 6)))
     iters = 1001
     train_log = np.zeros(iters)
     valid_log = np.zeros(iters)
     train_error = np.zeros(iters)
     valid_error = np.zeros(iters)
+    test_error = np.zeros(iters)
     
     print layers, hidden_dim, keep_rate, learning_rate
     hyperparams = {'layers': layers,
@@ -182,11 +183,12 @@ def task6(rep):
             valid_log[step] = vl
             train_error[step] = errors(predictions, y_batch)
             valid_error[step] = errors(yhat_valid.eval(), dataset['y_valid'])
+            test_error[step] = errors(yhat_test.eval(), dataset['y_test'])
             if (step % 100 == 0):
                 print ('Minibatch loss at step %d: %f, validation loss %f' % (step, l, vl))
                 print 'Minibatch accuracy: ', accuracy(predictions, y_batch)
                 print 'Validation accuracy: ', accuracy(yhat_valid.eval(), dataset['y_valid'])
-                print 'Validation errors: ', errors(yhat_test.eval(), dataset['y_test'])
+                print 'Validation errors: ', errors(yhat_valid.eval(), dataset['y_valid'])
                 print 'Test accuracy: ', accuracy(yhat_test.eval(), dataset['y_test'])
                 print 'Test errors: ', errors(yhat_test.eval(), dataset['y_test'])
 
@@ -204,7 +206,8 @@ def task6(rep):
                     batch_train_log = train_log,
                     valid_log = valid_log,
                     train_error = train_error,
-                    valid_error = valid_error)
+                    valid_error = valid_error,
+                    test_error = test_error)
 
         return hyperparams
 
@@ -215,7 +218,7 @@ if __name__ == '__main__':
     #convnet(28, 28, 10, {'filter_width':5, 'stride':1})
     #task2()
     #task3()
-    for i in np.arange(5):
+    for i in np.arange(2):
         rvals = task6(i)
         np.savez('t6hypers%d.npz' % i,
                 learning_rate = rvals['learning_rate'],

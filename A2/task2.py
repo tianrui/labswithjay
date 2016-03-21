@@ -23,6 +23,7 @@ def task2():
     valid_log = np.zeros(iters)
     train_error = np.zeros(iters)
     valid_error = np.zeros(iters)
+    test_error = np.zeros(iters)
 
     for learning_rate in eta_rates:
         task2_g = tf.Graph()
@@ -88,6 +89,7 @@ def task2():
                 valid_log[step] = vl
                 train_error[step] = errors(predictions, y_batch)
                 valid_error[step] = errors(yhat_valid.eval(), dataset['y_valid'])
+                test_error[step] = errors(yhat_test.eval(), dataset['y_test'])
                 if (step % 100 == 0):
                     print ('Minibatch loss at step %d: %f, validation loss %f' % (step, l, vl))
                     print 'Minibatch accuracy: ', accuracy(predictions, y_batch)
@@ -111,7 +113,8 @@ def task2():
                     batch_train_log = train_log,
                     valid_log = valid_log,
                     train_error = train_error,
-                    valid_error = valid_error)
+                    valid_error = valid_error,
+                    test_error = test_error)
 
 def task3():
     pred = np.random.randn(10, 100)
@@ -127,12 +130,13 @@ def task3():
     drop_rate = 0.5
     out_dir = "./"
 
-    learning_rate = 1e-4
+    learning_rate = 1e-3
     iters = 1001
     train_log = np.zeros(iters)
     valid_log = np.zeros(iters)
     train_error = np.zeros(iters)
     valid_error = np.zeros(iters)
+    test_error = np.zeros(iters)
 
     for hidden_dim in hidden_array:
         task2_g = tf.Graph()
@@ -206,6 +210,7 @@ def task3():
                 valid_log[step] = vl
                 train_error[step] = errors(predictions, y_batch)
                 valid_error[step] = errors(yhat_valid.eval(), dataset['y_valid'])
+                test_error[step] = errors(yhat_test.eval(), dataset['y_test'])
                 if (step % 100 == 0):
                     print ('Minibatch loss at step %d: %f, validation loss %f' % (step, l, vl))
                     print 'Minibatch accuracy: ', accuracy(predictions, y_batch)
@@ -228,7 +233,8 @@ def task3():
                         batch_train_log = train_log,
                         valid_log = valid_log,
                         train_error = train_error,
-                        valid_error = valid_error)
+                        valid_error = valid_error,
+                        test_error = test_error)
 
 
 
@@ -246,12 +252,13 @@ def task5():
     drop_rate = 0.5
     out_dir = "./"
 
-    learning_rate = 1e-4
+    learning_rate = 1e-3
     iters = 1001
     train_log = np.zeros(iters)
     valid_log = np.zeros(iters)
     train_error = np.zeros(iters)
     valid_error = np.zeros(iters)
+    test_error = np.zeros(iters)
 
     task2_g = tf.Graph()
     with task2_g.as_default():
@@ -324,6 +331,7 @@ def task5():
             valid_log[step] = vl
             train_error[step] = errors(predictions, y_batch)
             valid_error[step] = errors(yhat_valid.eval(), dataset['y_valid'])
+            test_error[step] = errors(yhat_test.eval(), dataset['y_test'])
             if (step % 100 == 0):
                 print ('Minibatch loss at step %d: %f, validation loss %f' % (step, l, vl))
                 print 'Minibatch accuracy: ', accuracy(predictions, y_batch)
@@ -346,10 +354,11 @@ def task5():
                     batch_train_log = train_log,
                     valid_log = valid_log,
                     train_error = train_error,
-                    valid_error = valid_error)
+                    valid_error = valid_error,
+                    test_error = test_error)
 
 
 if __name__ == '__main__':
     task2()
-    task3()
-    task5()
+    #task3()
+    #task5()
