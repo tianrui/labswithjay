@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 def reduce_logsumexp(input_tensor, reduction_indices=1, keep_dims=False):
   """Computes the sum of elements across dimensions of a tensor in log domain.
@@ -34,4 +35,26 @@ def logsoftmax(input_tensor):
   """
   return input_tensor - reduce_logsumexp(input_tensor, keep_dims=True)
 
+def L2_dist(A, B):
+    """Computes L2 distance of points in two matrices
+    sum(x-y)^2 = sum x^2 + sum y^2 + sum xy
+    Args:
+        A: MxD tensor
+        B: NxD tensor
+    Returns:
+        MxN tensor of L2 distance
+    """
+    t1 = (tf.reduce_sum(A*A, reduction_indices=1, keep_dims=True))
+    t2 = tf.transpose((tf.reduce_sum(B*B, reduction_indices=1, keep_dims=True)))
+    t3 = 2 * tf.matmul(A, tf.transpose(B))
+    return tf.sqrt(t1+t2-t3)
+
+def L2_dist_np(A, B):
+    M, D = A.shape
+    N, D1 = B.shape
+    assert D==D1
+    return np.sum(A**2, axis=1)[:, None] + np.transpose(np.sum(B**2, axis=1))[None, :] - 2 * np.matmul(A, np.transpose(B))
+
+def load_data(fname):
+    return np.load(fname)
 
