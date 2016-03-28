@@ -89,16 +89,66 @@ def t1_3():
         for i in range(len(t)):
             print 'plotting scatter...'
             print 'cluster x, y shape ', t[i][:, 0].shape, t[i][:, 1].shape
+            print 'cluster x, y shape ', t[i][:, 0].shape, t[i][:, 1].shape
             
             s = plt.scatter(t[i][:, 0], t[i][:, 1], color=next(colors))
             #print "returned ", s
         plt.show() 
         plt.savefig('t12_3_scatter_k%d.png' % (i))
 
+# Calculating likelihood of a given cluster
+def std_z(x, mu, sigma):
+    x_norm = tf.reduce_sum(x*x, 1, keep_dims=True)
+    mu_norm = tf.transpose(tf.reduce_sum(mu*mu, 1, keep_dims=True))
+    dist = x_norm + mu_norm - 2.*tf.matmul(x, tf.transpose(mu))
+    res = tf.reduce_sum(dist, 0) / (-2. * sigma*sigma)
+    return res
+
+
+def t2(lr=0.005, K=3):
+    data = utils.load_data('data2D.npy').astype("float32")
+    M, D = data.shape
+
+    graph = tf.Graph()
+    with graph.as_default():
+        x_train = tf.placeholder(tf.float32, shape=(None, D))
+        mu  = tf.Variable(tf.truncated_normal([K, D], dtype=tf.float32))
+        # Assume isotropic variance
+        sigma  = tf.Variable(tf.truncated_normal([K], dtype=tf.float32))
+
+        likelihood = std_z(x_train, mu, sigma)
+        cost = utils.reduce_logsumexp(likelihood, 0)
+        optim = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(cost)
+
+    epochs = 1000
+
+    with tf.Session(graph=graph) as sess:
+
+        tf.initialize_all_variables().run()
+        cost_l = []
  
+        for epoch in range(epochs):
+            x_batch = data
+            feed_dict={x_train:x_batch}
+            _, c, like = sess.run([optim, cost, likelihood], feed_dict=feed_dict)
+            cost_l.append(c)
+            ind = np.argmin(like)
+            val = np.min(like)
+            if epoch % 100 == 0:
+                print("Epoch %03d, cost = %.2f. %02d cluster has lowest likelihood %.2f" % (epoch, c, ind, val))
+
+        feed_dict = {x_train:x_batch}
+        _, c, like = sess.run([optim, cost, likelihood], feed_dict=feed_dict)
+        ind = np.argmin(like)
+        val = np.min(like)
+        print("Final result cost = %.2f. %02d cluster has lowest likelihood %.2f" % (c, ind, val))
+        print like.shape
+
+    return
 
 
 
 if __name__=='__main__':
-    t1_3()
+    #t1_3()
+    t2()
 
