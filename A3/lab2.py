@@ -56,7 +56,17 @@ def classify(x, mu):
     t = []
     for k in range(K):
         t.append(x[np.where(ind==k)[0]])
-        print t[-1].shape
+    
+    return t
+
+def mog_classify(x, norm_dist):
+    M, D = x.shape
+    M, K = norm_dist.shape
+    ind = np.argmin(norm_dist, 1)
+    sorted_x = x[ind.argsort()]
+    t = []
+    for k in range(K):
+        t.append(x[np.where(ind==k)[0]])
     
     return t
     
@@ -98,11 +108,31 @@ def t1_3():
 
 # Calculating likelihood of a given cluster
 def std_z(x, mu, sigma):
-    x_norm = tf.reduce_sum(x*x, 1, keep_dims=True)
-    mu_norm = tf.transpose(tf.reduce_sum(mu*mu, 1, keep_dims=True))
-    dist = x_norm + mu_norm - 2.*tf.matmul(x, tf.transpose(mu))
+    """
+    x: M x D
+    mu: K x D
+    sigma: K
+    """
+    #x_norm = tf.reduce_sum(x*x, 1, keep_dims=True)
+    #mu_norm = tf.transpose(tf.reduce_sum(mu*mu, 1, keep_dims=True))
+    #dist = x_norm + mu_norm - 2.*tf.matmul(x, tf.transpose(mu))
+    dist = utils.L2_dist(x, mu)
     res = tf.reduce_sum(dist, 0) / (-2. * sigma*sigma)
     return res
+
+def mog_dist(x, mu, sigma):
+    """
+    x: M x D
+    mu: K x D
+    sigma: K
+    """
+    #x_norm = tf.reduce_sum(x*x, 1, keep_dims=True)
+    #mu_norm = tf.transpose(tf.reduce_sum(mu*mu, 1, keep_dims=True))
+    #dist = x_norm + mu_norm - 2.*tf.matmul(x, tf.transpose(mu))
+    dist = utils.L2_dist(x, mu)
+    res = dist / (2. * sigma*sigma)
+    return res
+
 
 
 def t2(lr=0.005, K=3):
@@ -117,10 +147,11 @@ def t2(lr=0.005, K=3):
         sigma  = tf.Variable(tf.truncated_normal([K], dtype=tf.float32))
 
         likelihood = std_z(x_train, mu, sigma)
+        norm_dist = mog_dist(x_train, mu, sigma)
         cost = utils.reduce_logsumexp(likelihood, 0)
         optim = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(cost)
 
-    epochs = 1000
+    epochs = 300
 
     with tf.Session(graph=graph) as sess:
 
@@ -128,8 +159,10 @@ def t2(lr=0.005, K=3):
         cost_l = []
  
         for epoch in range(epochs):
+
             x_batch = data
             feed_dict={x_train:x_batch}
+            
             _, c, like = sess.run([optim, cost, likelihood], feed_dict=feed_dict)
             cost_l.append(c)
             ind = np.argmin(like)
@@ -138,11 +171,26 @@ def t2(lr=0.005, K=3):
                 print("Epoch %03d, cost = %.2f. %02d cluster has lowest likelihood %.2f" % (epoch, c, ind, val))
 
         feed_dict = {x_train:x_batch}
-        _, c, like = sess.run([optim, cost, likelihood], feed_dict=feed_dict)
+        _, c, normdist, like, mu = sess.run([optim, cost, norm_dist, likelihood, mu], feed_dict=feed_dict)
         ind = np.argmin(like)
         val = np.min(like)
         print("Final result cost = %.2f. %02d cluster has lowest likelihood %.2f" % (c, ind, val))
-        print like.shape
+# Plotting scatter
+        t = mog_classify(data, normdist)
+        colors = iter(cm.rainbow(np.linspace(0, 1, len(t))))
+        plt.clf()
+        for i in range(len(t)):
+            print 'plotting scatter...'
+            print 'cluster x, y shape ', t[i][:, 0].shape, t[i][:, 1].shape
+            color_i=next(colors)
+            plt.scatter(t[i][:, 0], t[i][:, 1], color=color_i)
+            plt.scatter(mu[i][0], mu[i][1], marker='x', color=color_i)
+            #print "returned ", s
+        plt.show() 
+        plt.savefig('t22_3_scatter_k%d.png' % (i))
+
+
+        print like
 
     return
 
