@@ -129,6 +129,17 @@ def mog_dist(x, mu, sigma):
     res = dist / (2. * sigma*sigma)
     return res
 
+def np_mog_dist(x, mu, sigma):
+    """
+    x: M x D
+    mu: K x D
+    sigma: K
+    """
+    dist = utils.L2_dist_np(x, mu)
+    res = dist / (2. * sigma*sigma)
+    return res
+
+
 def mog_log_likelihood_z(x, mu, sigma):
     xshape = tf.cast(tf.shape(x), tf.float32)
     norm_dist = utils.L2_dist(x, mu)
@@ -151,12 +162,12 @@ def t2(lr=0.005, K=3):
         sigma  = tf.Variable(tf.truncated_normal([K], dtype=tf.float32))
         phi  = tf.Variable(tf.truncated_normal([K], dtype=tf.float32))
 
-        likelihood = std_z(x_train, mu, sigma)
-        log_like_z, z = mog_log_likelihood_z(x_train, mu, sigma)
+        likelihood = std_z(x_train, mu, tf.exp(sigma))
+        log_like_z, z = mog_log_likelihood_z(x_train, mu, tf.exp(sigma))
         #logprob_kn = log_like_z + (tf.log(utils.logsoftmax(phi)))
         logProb = mog_logprob(log_like_z)
 
-        norm_dist = mog_dist(x_train, mu, sigma)
+        norm_dist = mog_dist(x_train, mu, tf.exp(sigma))
         cost = utils.reduce_logsumexp(likelihood, 0)
         #cost = tf.reduce_sum(utils.reduce_logsumexp(log_like_z + tf.tile(tf.log(utils.logsoftmax(phi)), [M, 1]), 1), 0)
         optim = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(cost)
@@ -178,13 +189,10 @@ def t2(lr=0.005, K=3):
             ind = np.argmin(like)
             val = np.min(like)
             if epoch % 10 == 0:
-                #print log_pz.shape, logp
-                #print log_pz[:10]
-                print zval
                 print("Epoch %03d, cost = %.2f. %02d cluster has lowest likelihood %.2f" % (epoch, c, ind, val))
-                #print("Log prob %.2f" % (logp))
+
         feed_dict = {x_train:x_batch}
-        _, c, normdist, like, mu = sess.run([optim, cost, norm_dist, likelihood, mu], feed_dict=feed_dict)
+        _, c, normdist, like, mu_val = sess.run([optim, cost, norm_dist, likelihood, mu], feed_dict=feed_dict)
         ind = np.argmin(like)
         val = np.min(like)
         print("Final result cost = %.2f. %02d cluster has lowest likelihood %.2f" % (c, ind, val))
@@ -197,15 +205,14 @@ def t2(lr=0.005, K=3):
             print 'cluster x, y shape ', t[i][:, 0].shape, t[i][:, 1].shape
             color_i=next(colors)
             plt.scatter(t[i][:, 0], t[i][:, 1], color=color_i)
-            plt.scatter(mu[i][0], mu[i][1], marker='x', color=color_i)
+            plt.scatter(mu_val[i][0], mu_val[i][1], marker='x', color=color_i)
             #print "returned ", s
         plt.show() 
         plt.savefig('t22_3_scatter_k%d.png' % (i))
 
+        print mu_val, sigma_val, log_pz
 
-        print like
-
-    return cost_l, mu
+    return cost_l, mu_val, sigma_val, log_pz
 
 def t2_validation(lr=0.005, K=3):
     data = utils.load_data('data2D.npy').astype("float32")
@@ -238,14 +245,14 @@ def t2_validation(lr=0.005, K=3):
             x_batch = data[:2*M/3]
             feed_dict={x_train:x_batch}
             
-            _, c, like, log_pz, logp, zval = sess.run([optim, cost, likelihood, log_like_z, logProb, z], feed_dict=feed_dict)
+            _, c, like, log_pz, logp, zval, mu_val, sigma_val = sess.run([optim, cost, likelihood, log_like_z, logProb, z, mu, sigma], feed_dict=feed_dict)
             cost_l.append(c)
             ind = np.argmin(like)
             val = np.min(like)
             if epoch % 10 == 0:
                 #print log_pz.shape, logp
                 #print log_pz[:10]
-                print zval
+                #print zval
                 print("Epoch %03d, cost = %.2f. %02d cluster has lowest likelihood %.2f" % (epoch, c, ind, val))
                 #print("Log prob %.2f" % (logp))
 
@@ -256,7 +263,9 @@ def t2_validation(lr=0.005, K=3):
         val = np.min(like)
         print("Validation result cost = %.2f. %02d cluster has lowest likelihood %.2f" % (c, ind, val))
 # Plotting scatter
-        t = mog_classify(data, normdist)
+        x_v = data[2*M/3:]
+        trainnormdist = np_mog_dist(x_v, mu_val, sigma_val)
+        t = mog_classify(data, trainnormdist)
         colors = iter(cm.rainbow(np.linspace(0, 1, len(t))))
         plt.clf()
         for i in range(len(t)):
@@ -277,7 +286,7 @@ def t2_validation(lr=0.005, K=3):
 
 if __name__=='__main__':
     #t1_3()
-    t_loss, mu = t2()
+    t_loss, mu = t2_validation()
     fig = plt.figure(1, figsize=(16,12))
     plt.plot(np.arange(len(t_loss)), t_loss)
     plt.savefig("t22_2.png")
