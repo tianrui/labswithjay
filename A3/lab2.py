@@ -277,5 +277,10 @@ def t2_validation(lr=0.005, K=3):
 
 if __name__=='__main__':
     #t1_3()
-    t2()
+    t_loss, mu = t2()
+    fig = plt.figure(1, figsize=(16,12))
+    plt.plot(np.arange(len(t_loss)), t_loss)
+    plt.savefig("t22_2.png")
+
+
 
