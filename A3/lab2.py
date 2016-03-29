@@ -113,10 +113,9 @@ def std_z(x, mu, sigma):
     mu: K x D
     sigma: K
     """
-    #x_norm = tf.reduce_sum(x*x, 1, keep_dims=True)
-    #mu_norm = tf.transpose(tf.reduce_sum(mu*mu, 1, keep_dims=True))
-    #dist = x_norm + mu_norm - 2.*tf.matmul(x, tf.transpose(mu))
-    dist = utils.L2_dist(x, mu)
+    x_norm = tf.reduce_sum(x*x, 1, keep_dims=True)
+    mu_norm = tf.transpose(tf.reduce_sum(mu*mu, 1, keep_dims=True))
+    dist = x_norm + mu_norm - 2.*tf.matmul(x, tf.transpose(mu))
     res = tf.reduce_sum(dist, 0) / (-2. * sigma*sigma)
     return res
 
@@ -126,14 +125,19 @@ def mog_dist(x, mu, sigma):
     mu: K x D
     sigma: K
     """
-    #x_norm = tf.reduce_sum(x*x, 1, keep_dims=True)
-    #mu_norm = tf.transpose(tf.reduce_sum(mu*mu, 1, keep_dims=True))
-    #dist = x_norm + mu_norm - 2.*tf.matmul(x, tf.transpose(mu))
     dist = utils.L2_dist(x, mu)
     res = dist / (2. * sigma*sigma)
     return res
 
+def mog_log_likelihood_z(x, mu, sigma):
+    norm_dist = utils.L2_dist(x, mu)
+    #norm_likelihood = norm_dist / tf.reduce_sum(norm_dist, reduction_indices=1, keepdims=True)
+    g_likelihood = (1 / (2*np.pi)**2 * tf.reduce_sum(sigma))  * tf.exp(-0.5 * norm_dist * norm_dist / sigma)
+    return tf.log(g_likelihood)
 
+
+def mog_logprob(log_likelihood_z):
+    return log_likelihood_z / utils.reduce_logsumexp(log_likelihood_z, keep_dims=True)
 
 def t2(lr=0.005, K=3):
     data = utils.load_data('data2D.npy').astype("float32")
@@ -147,11 +151,14 @@ def t2(lr=0.005, K=3):
         sigma  = tf.Variable(tf.truncated_normal([K], dtype=tf.float32))
 
         likelihood = std_z(x_train, mu, sigma)
+        log_like_z = mog_log_likelihood_z(x_train, mu, sigma)
+        logProb = mog_logprob(log_like_z)
+
         norm_dist = mog_dist(x_train, mu, sigma)
         cost = utils.reduce_logsumexp(likelihood, 0)
         optim = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(cost)
 
-    epochs = 300
+    epochs = 80
 
     with tf.Session(graph=graph) as sess:
 
@@ -163,13 +170,14 @@ def t2(lr=0.005, K=3):
             x_batch = data
             feed_dict={x_train:x_batch}
             
-            _, c, like = sess.run([optim, cost, likelihood], feed_dict=feed_dict)
+            _, c, like, log_pz, logp = sess.run([optim, cost, likelihood, log_like_z, logProb], feed_dict=feed_dict)
             cost_l.append(c)
             ind = np.argmin(like)
             val = np.min(like)
-            if epoch % 100 == 0:
+            if epoch % 10 == 0:
+                print log_pz.shape, logp
                 print("Epoch %03d, cost = %.2f. %02d cluster has lowest likelihood %.2f" % (epoch, c, ind, val))
-
+                #print("Log prob %.2f" % (logp))
         feed_dict = {x_train:x_batch}
         _, c, normdist, like, mu = sess.run([optim, cost, norm_dist, likelihood, mu], feed_dict=feed_dict)
         ind = np.argmin(like)
