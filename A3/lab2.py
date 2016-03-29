@@ -130,14 +130,14 @@ def mog_dist(x, mu, sigma):
     return res
 
 def mog_log_likelihood_z(x, mu, sigma):
+    xshape = tf.cast(tf.shape(x), tf.float32)
     norm_dist = utils.L2_dist(x, mu)
     #norm_likelihood = norm_dist / tf.reduce_sum(norm_dist, reduction_indices=1, keepdims=True)
-    g_likelihood = (1 / (2*np.pi)**2 * tf.reduce_sum(sigma))  * tf.exp(-0.5 * norm_dist * norm_dist / sigma)
-    return tf.log(g_likelihood)
-
+    log_like = tf.log(tf.pow(1/(2*np.pi), xshape[1]/2.)) - tf.log(sigma) + -0.5 * norm_dist * norm_dist / sigma
+    return log_like, norm_dist*norm_dist/sigma
 
 def mog_logprob(log_likelihood_z):
-    return log_likelihood_z / utils.reduce_logsumexp(log_likelihood_z, keep_dims=True)
+    return log_likelihood_z - utils.reduce_logsumexp(log_likelihood_z, keep_dims=True)
 
 def t2(lr=0.005, K=3):
     data = utils.load_data('data2D.npy').astype("float32")
@@ -149,16 +149,19 @@ def t2(lr=0.005, K=3):
         mu  = tf.Variable(tf.truncated_normal([K, D], dtype=tf.float32))
         # Assume isotropic variance
         sigma  = tf.Variable(tf.truncated_normal([K], dtype=tf.float32))
+        phi  = tf.Variable(tf.truncated_normal([K], dtype=tf.float32))
 
         likelihood = std_z(x_train, mu, sigma)
-        log_like_z = mog_log_likelihood_z(x_train, mu, sigma)
+        log_like_z, z = mog_log_likelihood_z(x_train, mu, sigma)
+        #logprob_kn = log_like_z + (tf.log(utils.logsoftmax(phi)))
         logProb = mog_logprob(log_like_z)
 
         norm_dist = mog_dist(x_train, mu, sigma)
         cost = utils.reduce_logsumexp(likelihood, 0)
+        #cost = tf.reduce_sum(utils.reduce_logsumexp(log_like_z + tf.tile(tf.log(utils.logsoftmax(phi)), [M, 1]), 1), 0)
         optim = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(cost)
 
-    epochs = 80
+    epochs = 100
 
     with tf.Session(graph=graph) as sess:
 
@@ -170,12 +173,14 @@ def t2(lr=0.005, K=3):
             x_batch = data
             feed_dict={x_train:x_batch}
             
-            _, c, like, log_pz, logp = sess.run([optim, cost, likelihood, log_like_z, logProb], feed_dict=feed_dict)
+            _, c, like, log_pz, logp, zval = sess.run([optim, cost, likelihood, log_like_z, logProb, z], feed_dict=feed_dict)
             cost_l.append(c)
             ind = np.argmin(like)
             val = np.min(like)
             if epoch % 10 == 0:
-                print log_pz.shape, logp
+                #print log_pz.shape, logp
+                #print log_pz[:10]
+                print zval
                 print("Epoch %03d, cost = %.2f. %02d cluster has lowest likelihood %.2f" % (epoch, c, ind, val))
                 #print("Log prob %.2f" % (logp))
         feed_dict = {x_train:x_batch}
@@ -200,8 +205,74 @@ def t2(lr=0.005, K=3):
 
         print like
 
-    return
+    return cost_l, mu
 
+def t2_validation(lr=0.005, K=3):
+    data = utils.load_data('data2D.npy').astype("float32")
+    M, D = data.shape
+
+    graph = tf.Graph()
+    with graph.as_default():
+        x_train = tf.placeholder(tf.float32, shape=(None, D))
+        mu  = tf.Variable(tf.truncated_normal([K, D], dtype=tf.float32))
+        # Assume isotropic variance
+        sigma  = tf.Variable(tf.truncated_normal([K], dtype=tf.float32))
+
+        likelihood = std_z(x_train, mu, sigma)
+        log_like_z, z = mog_log_likelihood_z(x_train, mu, sigma)
+        logProb = mog_logprob(log_like_z)
+
+        norm_dist = mog_dist(x_train, mu, sigma)
+        cost = utils.reduce_logsumexp(likelihood, 0)
+        optim = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(cost)
+
+    epochs = 100
+
+    with tf.Session(graph=graph) as sess:
+
+        tf.initialize_all_variables().run()
+        cost_l = []
+ 
+        for epoch in range(epochs):
+
+            x_batch = data[:2*M/3]
+            feed_dict={x_train:x_batch}
+            
+            _, c, like, log_pz, logp, zval = sess.run([optim, cost, likelihood, log_like_z, logProb, z], feed_dict=feed_dict)
+            cost_l.append(c)
+            ind = np.argmin(like)
+            val = np.min(like)
+            if epoch % 10 == 0:
+                #print log_pz.shape, logp
+                #print log_pz[:10]
+                print zval
+                print("Epoch %03d, cost = %.2f. %02d cluster has lowest likelihood %.2f" % (epoch, c, ind, val))
+                #print("Log prob %.2f" % (logp))
+
+
+        feed_dict = {x_train:data[2*M/3:]}
+        _, c, normdist, like, mu = sess.run([optim, cost, norm_dist, likelihood, mu], feed_dict=feed_dict)
+        ind = np.argmin(like)
+        val = np.min(like)
+        print("Validation result cost = %.2f. %02d cluster has lowest likelihood %.2f" % (c, ind, val))
+# Plotting scatter
+        t = mog_classify(data, normdist)
+        colors = iter(cm.rainbow(np.linspace(0, 1, len(t))))
+        plt.clf()
+        for i in range(len(t)):
+            print 'plotting scatter...'
+            print 'cluster x, y shape ', t[i][:, 0].shape, t[i][:, 1].shape
+            color_i=next(colors)
+            plt.scatter(t[i][:, 0], t[i][:, 1], color=color_i)
+            plt.scatter(mu[i][0], mu[i][1], marker='x', color=color_i)
+            #print "returned ", s
+        plt.show() 
+        plt.savefig('t22_3_scatter_k%d_with_validation.png' % (i))
+
+
+        print like
+
+    return cost_l, mu
 
 
 if __name__=='__main__':
